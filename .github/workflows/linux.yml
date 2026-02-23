@@ -9,6 +9,7 @@ on:
 jobs:
   linux_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -27,37 +28,50 @@ jobs:
           make
 
       - name: Run standalone "event loop" test
+        timeout-minutes: 5
         run: |
-          sudo ./build/test-evloop
+          set -euo pipefail
+          timeout --preserve-status 5m sudo ./build/test-evloop
           sudo killall tcpdump || true
 
       - name: Run standalone "IPsec esp" test
+        timeout-minutes: 7
         run: |
-          sudo ./tools/ip-xfrm/rfc4106 128
-          sudo ./build/test-esp -m 0
+          set -euo pipefail
+          sudo ./tools/ip-xfrm/delete_all || true
+          timeout --preserve-status 7m sudo ./tools/ip-xfrm/rfc4106 128
+          timeout --preserve-status 7m sudo ./build/test-esp -m 0
           sudo killall tcpdump || true
-          sudo ./tools/ip-xfrm/delete_all
-          sudo ./tools/ip-xfrm/cbc_auth sha256 128
-          sudo ./build/test-esp -m 1
+          sudo ./tools/ip-xfrm/delete_all || true
+          timeout --preserve-status 7m sudo ./tools/ip-xfrm/cbc_auth sha256 128
+          timeout --preserve-status 7m sudo ./build/test-esp -m 1
           sudo killall tcpdump || true
-          sudo ./tools/ip-xfrm/delete_all
+          sudo ./tools/ip-xfrm/delete_all || true
 
       - name: Run standalone wolfssl test
+        timeout-minutes: 5
         run: |
-          sudo ./build/test-wolfssl
+          set -euo pipefail
+          timeout --preserve-status 5m sudo ./build/test-wolfssl
           sudo killall tcpdump || true
 
       - name: Run standalone forwarding test
+        timeout-minutes: 5
         run: |
-          sudo ./build/test-wolfssl-forwarding
+          set -euo pipefail
+          timeout --preserve-status 5m sudo ./build/test-wolfssl-forwarding
 
       - name: Run standalone TTL expired test
+        timeout-minutes: 5
         run: |
-          ./build/test-ttl-expired
+          set -euo pipefail
+          timeout --preserve-status 5m ./build/test-ttl-expired
 
       - name: Testing ICMP socket by stealing system calls in ping
+        timeout-minutes: 2
         run: |
-          sudo LD_PRELOAD=$PWD/libwolfip.so ping -c 5 10.10.10.1
+          set -euo pipefail
+          timeout --preserve-status 2m sudo LD_PRELOAD=$PWD/libwolfip.so ping -c 5 10.10.10.1
 
       - name: Install check
         run: |
@@ -68,5 +82,13 @@ jobs:
           make unit
 
       - name: Run unit tests
+        timeout-minutes: 5
         run: |
-          build/test/unit
+          set -euo pipefail
+          timeout --preserve-status 5m build/test/unit
+
+      - name: Cleanup IPsec state
+        if: always()
+        run: |
+          sudo ./tools/ip-xfrm/delete_all || true
+          sudo killall tcpdump || true

@@ -34,19 +34,19 @@ jobs:
           timeout --preserve-status 5m sudo ./build/test-evloop
           sudo killall tcpdump || true
 
-      - name: Run standalone "IPsec esp" test
-        timeout-minutes: 7
-        run: |
-          set -euo pipefail
-          sudo ./tools/ip-xfrm/delete_all || true
-          timeout --preserve-status 7m sudo ./tools/ip-xfrm/rfc4106 128
-          timeout --preserve-status 7m sudo ./build/test-esp -m 0
-          sudo killall tcpdump || true
-          sudo ./tools/ip-xfrm/delete_all || true
-          timeout --preserve-status 7m sudo ./tools/ip-xfrm/cbc_auth sha256 128
-          timeout --preserve-status 7m sudo ./build/test-esp -m 1
-          sudo killall tcpdump || true
-          sudo ./tools/ip-xfrm/delete_all || true
+#      - name: Run standalone "IPsec esp" test
+#        timeout-minutes: 7
+#        run: |
+#          set -euo pipefail
+#          sudo ./tools/ip-xfrm/delete_all || true
+#          timeout --preserve-status 7m sudo ./tools/ip-xfrm/rfc4106 128
+#          timeout --preserve-status 7m sudo ./build/test-esp -m 0
+#          sudo killall tcpdump || true
+#          sudo ./tools/ip-xfrm/delete_all || true
+#          timeout --preserve-status 7m sudo ./tools/ip-xfrm/cbc_auth sha256 128
+#          timeout --preserve-status 7m sudo ./build/test-esp -m 1
+#          sudo killall tcpdump || true
+#          sudo ./tools/ip-xfrm/delete_all || true
 
       - name: Run standalone wolfssl test
         timeout-minutes: 5

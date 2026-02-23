@@ -12670,14 +12670,24 @@ END_TEST
 
 START_TEST(test_queue_pop_wraparound) {
     struct queue q;
+    struct {
+        uint8_t buf[8];
+        uint8_t guard[4];
+    } storage;
     uint8_t data[] = {9, 10, 11, 12};
     uint8_t out[4];
     int len;
-    queue_init(&q, mem, memsz, 0x12345678);
+    memset(&storage, 0, sizeof(storage));
+    memset(storage.guard, 0xEE, sizeof(storage.guard));
+    queue_init(&q, storage.buf, sizeof(storage.buf), 0x12345678);
 
-    q.head = memsz - 1;
-    q.tail = memsz - 1;
-    queue_insert(&q, data, 0, sizeof(data));
+    /* Manually set a wrapped queue state: tail near end, head near start. */
+    q.tail = 6;
+    q.head = 2;
+    storage.buf[6] = data[0];
+    storage.buf[7] = data[1];
+    storage.buf[0] = data[2];
+    storage.buf[1] = data[3];
     len = queue_pop(&q, out, sizeof(out));
     ck_assert_int_eq(len, sizeof(out));
     ck_assert_mem_eq(out, data, sizeof(data));

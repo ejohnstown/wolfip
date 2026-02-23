@@ -573,11 +573,18 @@ static int queue_insert(struct queue *q, void *data, uint32_t seq, uint32_t len)
 static int queue_pop(struct queue *q, void *data, uint32_t len)
 {
     uint32_t q_len = queue_len(q);
+    uint32_t first_chunk;
     if (q_len == 0)
         return -WOLFIP_EAGAIN;
     if (len > q_len)
         len = q_len;
-    memcpy(data, (const uint8_t *)q->data + q->tail, len);
+    if (q->tail + len > q->size) {
+        first_chunk = q->size - q->tail;
+        memcpy(data, (const uint8_t *)q->data + q->tail, first_chunk);
+        memcpy((uint8_t *)data + first_chunk, (const uint8_t *)q->data, len - first_chunk);
+    } else {
+        memcpy(data, (const uint8_t *)q->data + q->tail, len);
+    }
     q->tail += len;
     q->tail %= q->size;
     q->seq_base += len;

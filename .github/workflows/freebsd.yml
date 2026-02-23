@@ -30,5 +30,6 @@ jobs:
             gmake build/test-evloop build/test-wolfssl build/test-ttl-expired unit
             ./build/test/unit
             ./build/test-evloop
+            sleep 2
             ./build/test-wolfssl
             ./build/test-ttl-expired

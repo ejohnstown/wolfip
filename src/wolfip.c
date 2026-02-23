@@ -4576,10 +4576,9 @@ static int dhcp_parse_ack(struct wolfIP *s, struct dhcp_msg *msg)
     while (opt->code != 0xFF) {
         if (opt->code == DHCP_OPTION_MSG_TYPE) {
             if (opt->data[0] == DHCP_ACK) {
-                uint32_t data;
                 opt = (struct dhcp_option *)((uint8_t *)opt + 3);
-                data = DHCP_OPT_data_to_u32(opt);
                 while (opt->code != 0xFF) {
+                    uint32_t data = DHCP_OPT_data_to_u32(opt);
                     if (opt->code == DHCP_OPTION_SERVER_ID)
                         s->dhcp_server_ip = ee32(data);
                     if (primary) {

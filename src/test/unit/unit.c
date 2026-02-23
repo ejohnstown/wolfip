@@ -4138,6 +4138,8 @@ START_TEST(test_dhcp_parse_offer_and_ack)
     struct ipconf *primary;
     uint32_t offer_ip = 0x0A000064U;
     uint32_t server_ip = 0x0A000001U;
+    uint32_t router_ip = 0x0A000002U;
+    uint32_t dns_ip = 0x08080808U;
     uint32_t mask = 0xFFFFFF00U;
 
     wolfIP_init(&s);
@@ -4196,17 +4198,34 @@ START_TEST(test_dhcp_parse_offer_and_ack)
     opt = (struct dhcp_option *)((uint8_t *)opt + 6);
     opt->code = DHCP_OPTION_DNS;
     opt->len = 4;
-    opt->data[0] = (server_ip >> 24) & 0xFF;
-    opt->data[1] = (server_ip >> 16) & 0xFF;
-    opt->data[2] = (server_ip >> 8) & 0xFF;
-    opt->data[3] = (server_ip >> 0) & 0xFF;
+    opt->data[0] = (dns_ip >> 24) & 0xFF;
+    opt->data[1] = (dns_ip >> 16) & 0xFF;
+    opt->data[2] = (dns_ip >> 8) & 0xFF;
+    opt->data[3] = (dns_ip >> 0) & 0xFF;
+    opt = (struct dhcp_option *)((uint8_t *)opt + 6);
+    opt->code = DHCP_OPTION_ROUTER;
+    opt->len = 4;
+    opt->data[0] = (router_ip >> 24) & 0xFF;
+    opt->data[1] = (router_ip >> 16) & 0xFF;
+    opt->data[2] = (router_ip >> 8) & 0xFF;
+    opt->data[3] = (router_ip >> 0) & 0xFF;
+    opt = (struct dhcp_option *)((uint8_t *)opt + 6);
+    opt->code = DHCP_OPTION_OFFER_IP;
+    opt->len = 4;
+    opt->data[0] = (offer_ip >> 24) & 0xFF;
+    opt->data[1] = (offer_ip >> 16) & 0xFF;
+    opt->data[2] = (offer_ip >> 8) & 0xFF;
+    opt->data[3] = (offer_ip >> 0) & 0xFF;
     opt = (struct dhcp_option *)((uint8_t *)opt + 6);
     opt->code = DHCP_OPTION_END;
     opt->len = 0;
 
     ck_assert_int_eq(dhcp_parse_ack(&s, &msg), 0);
     ck_assert_int_eq(s.dhcp_state, DHCP_BOUND);
-    ck_assert_uint_eq(s.dns_server, server_ip);
+    ck_assert_uint_eq(primary->ip, offer_ip);
+    ck_assert_uint_eq(primary->mask, mask);
+    ck_assert_uint_eq(primary->gw, router_ip);
+    ck_assert_uint_eq(s.dns_server, dns_ip);
 }
 END_TEST
 

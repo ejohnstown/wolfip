@@ -4196,8 +4196,8 @@ int wolfIP_sock_getsockname(struct wolfIP *s, int sockfd, struct wolfIP_sockaddr
             return -WOLFIP_EINVAL;
         ts = &s->tcpsockets[SOCKET_UNMARK(sockfd)];
         sin->sin_family = AF_INET;
-        sin->sin_port = ts->src_port;
-        sin->sin_addr.s_addr = ts->local_ip;
+        sin->sin_port = ee16(ts->src_port);
+        sin->sin_addr.s_addr = ee32(ts->local_ip);
         return 0;
     } else if (IS_SOCKET_UDP(sockfd)) {
         if (SOCKET_UNMARK(sockfd) >= MAX_UDPSOCKETS)

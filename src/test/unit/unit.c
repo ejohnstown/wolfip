@@ -4371,8 +4371,8 @@ START_TEST(test_sock_opts_and_names)
 
     memset(&sin, 0, sizeof(sin));
     ck_assert_int_eq(wolfIP_sock_getsockname(&s, tcp_sd, (struct wolfIP_sockaddr *)&sin, &sin_len), 0);
-    ck_assert_uint_eq(sin.sin_port, 4321);
-    ck_assert_uint_eq(sin.sin_addr.s_addr, local_ip);
+    ck_assert_uint_eq(sin.sin_port, ee16(4321));
+    ck_assert_uint_eq(sin.sin_addr.s_addr, ee32(local_ip));
 
     memset(&peer, 0, sizeof(peer));
     ck_assert_int_eq(wolfIP_sock_getpeername(&s, tcp_sd, (struct wolfIP_sockaddr *)&peer, &peer_len), 0);

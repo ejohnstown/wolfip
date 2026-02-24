@@ -7444,7 +7444,7 @@ START_TEST(test_dhcp_parse_offer_ignores_short_unknown_option)
     opt->code = DHCP_OPTION_END;
     opt->len = 0;
 
-    ck_assert_int_eq(dhcp_parse_offer(&s, &msg, DHCP_HEADER_LEN + 10), 0);
+    ck_assert_int_eq(dhcp_parse_offer(&s, &msg, DHCP_HEADER_LEN + 14), 0);
     ck_assert_uint_eq(s.dhcp_ip, offer_ip);
     ck_assert_uint_eq(s.dhcp_server_ip, server_ip);
     ck_assert_int_eq(s.dhcp_state, DHCP_REQUEST_SENT);
@@ -7634,7 +7634,7 @@ START_TEST(test_dhcp_parse_ack_ignores_short_unknown_option)
     opt->code = DHCP_OPTION_END;
     opt->len = 0;
 
-    ck_assert_int_eq(dhcp_parse_ack(&s, &msg, DHCP_HEADER_LEN + 18), 0);
+    ck_assert_int_eq(dhcp_parse_ack(&s, &msg, DHCP_HEADER_LEN + 20), 0);
     ck_assert_uint_eq(primary->ip, offer_ip);
     ck_assert_uint_eq(primary->mask, mask);
 }
@@ -15878,6 +15878,7 @@ Suite *wolf_suite(void)
     tcase_add_test(tc_utils, test_dhcp_parse_offer_missing_end_rejected);
     tcase_add_test(tc_utils, test_dhcp_parse_offer_msg_type_len_ne_1_rejected);
     tcase_add_test(tc_utils, test_dhcp_parse_ack_truncated_option_rejected);
+    tcase_add_test(tc_utils, test_dhcp_parse_ack_ignores_short_unknown_option);
     tcase_add_test(tc_utils, test_dhcp_parse_ack_msg_type_len_ne_1_rejected);
     tcase_add_test(tc_utils, test_dhcp_parse_ack_len_lt_four_rejected);
     tcase_add_test(tc_utils, test_dhcp_parse_ack_ignores_zero_len_unknown_option);

@@ -4527,27 +4527,80 @@ static void dhcp_cancel_timer(struct wolfIP *s)
         (opt)->data[3] = ((v) >>  0) & 0xFF;  \
     } while (0)
 
-static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg)
+static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg_len)
 {
-    struct dhcp_option *opt = (struct dhcp_option *)(msg->options);
+    uint8_t *opt = (uint8_t *)msg->options;
+    uint8_t *opt_end;
+    int saw_end = 0;
     uint32_t ip;
     uint32_t netmask = 0xFFFFFF00;
     struct ipconf *primary = wolfIP_primary_ipconf(s);
-    while (opt->code != 0xFF) {
-        if (opt->code == DHCP_OPTION_MSG_TYPE) {
-            if (opt->data[0] == DHCP_OFFER) {
-                opt = (struct dhcp_option *)((uint8_t *)opt + 3);
-                while (opt->code != 0xFF) {
-                    if (opt->code == DHCP_OPTION_SERVER_ID) {
-                        uint32_t data = DHCP_OPT_data_to_u32(opt);
-                        s->dhcp_server_ip = ee32(data);
+    if (msg_len < DHCP_HEADER_LEN)
+        return -1;
+    if (ee32(msg->magic) != DHCP_MAGIC)
+        return -1;
+    if (msg_len - DHCP_HEADER_LEN > sizeof(msg->options))
+        opt_end = (uint8_t *)msg->options + sizeof(msg->options);
+    else
+        opt_end = (uint8_t *)msg->options + (msg_len - DHCP_HEADER_LEN);
+    while (opt < opt_end) {
+        uint8_t code;
+        uint8_t len;
+        if (opt + 1 > opt_end)
+            break;
+        code = opt[0];
+        if (code == DHCP_OPTION_END) {
+            saw_end = 1;
+            break;
+        }
+        if (code == 0) { /* Pad */
+            opt++;
+            continue;
+        }
+        if (opt + 2 > opt_end)
+            return -1;
+        len = opt[1];
+        if (opt + 2 + len > opt_end)
+            return -1;
+        if (code == DHCP_OPTION_MSG_TYPE) {
+            if (len != 1)
+                return -1;
+            if (opt[2] == DHCP_OFFER) {
+                opt += 2 + len;
+                saw_end = 0;
+                while (opt < opt_end) {
+                    struct dhcp_option *inner;
+                    if (opt + 1 > opt_end)
+                        break;
+                    code = opt[0];
+                    if (code == DHCP_OPTION_END) {
+                        saw_end = 1;
+                        break;
                     }
-                    if (opt->code == DHCP_OPTION_SUBNET_MASK) {
-                        netmask = DHCP_OPT_data_to_u32(opt);
+                    if (code == 0) {
+                        opt++;
+                        continue;
                     }
-
-                    opt = (struct dhcp_option *)((uint8_t *)opt + 2 + opt->len);
+                    if (opt + 2 > opt_end)
+                        return -1;
+                    len = opt[1];
+                    if (opt + 2 + len > opt_end)
+                        return -1;
+                    inner = (struct dhcp_option *)opt;
+                    if (code == DHCP_OPTION_SERVER_ID) {
+                        if (len < 4)
+                            return -1;
+                        s->dhcp_server_ip = ee32(DHCP_OPT_data_to_u32(inner));
+                    }
+                    if (code == DHCP_OPTION_SUBNET_MASK) {
+                        if (len < 4)
+                            return -1;
+                        netmask = DHCP_OPT_data_to_u32(inner);
+                    }
+                    opt += 2 + len;
                 }
+                if (!saw_end)
+                    return -1;
                 ip = ee32(msg->yiaddr);
                 if (primary) {
                     primary->ip = ip;
@@ -4559,8 +4612,10 @@ static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg)
                 return 0;
             }
         }
-        opt = (struct dhcp_option *)((uint8_t *)opt + 2 + opt->len);
+        opt += 2 + len;
     }
+    if (!saw_end)
+        return -1;
     if ((s->dhcp_server_ip != 0) && (s->dhcp_ip != 0)) {
         s->dhcp_state = DHCP_REQUEST_SENT;
         return 0;
@@ -4569,39 +4624,107 @@ static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg)
 }
 
 
-static int dhcp_parse_ack(struct wolfIP *s, struct dhcp_msg *msg)
+static int dhcp_parse_ack(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg_len)
 {
-    struct dhcp_option *opt = (struct dhcp_option *)(msg->options);
+    uint8_t *opt = (uint8_t *)msg->options;
+    uint8_t *opt_end;
+    int saw_end = 0;
     struct ipconf *primary = wolfIP_primary_ipconf(s);
-    while (opt->code != 0xFF) {
-        if (opt->code == DHCP_OPTION_MSG_TYPE) {
-            if (opt->data[0] == DHCP_ACK) {
-                uint32_t data;
-                opt = (struct dhcp_option *)((uint8_t *)opt + 3);
-                data = DHCP_OPT_data_to_u32(opt);
-                while (opt->code != 0xFF) {
-                    if (opt->code == DHCP_OPTION_SERVER_ID)
-                        s->dhcp_server_ip = ee32(data);
-                    if (primary) {
-                        if (opt->code == DHCP_OPTION_OFFER_IP)
-                            primary->ip = ee32(data);
-                        if (opt->code == DHCP_OPTION_SUBNET_MASK)
-                            primary->mask = ee32(data);
-                        if (opt->code == DHCP_OPTION_ROUTER)
-                            primary->gw = ee32(data);
+    if (msg_len < DHCP_HEADER_LEN)
+        return -1;
+    if (ee32(msg->magic) != DHCP_MAGIC)
+        return -1;
+    if (msg_len - DHCP_HEADER_LEN > sizeof(msg->options))
+        opt_end = (uint8_t *)msg->options + sizeof(msg->options);
+    else
+        opt_end = (uint8_t *)msg->options + (msg_len - DHCP_HEADER_LEN);
+    while (opt < opt_end) {
+        uint8_t code;
+        uint8_t len;
+        if (opt + 1 > opt_end)
+            break;
+        code = opt[0];
+        if (code == DHCP_OPTION_END) {
+            saw_end = 1;
+            break;
+        }
+        if (code == 0) { /* Pad */
+            opt++;
+            continue;
+        }
+        if (opt + 2 > opt_end)
+            return -1;
+        len = opt[1];
+        if (opt + 2 + len > opt_end)
+            return -1;
+        if (code == DHCP_OPTION_MSG_TYPE) {
+            if (len != 1)
+                return -1;
+            if (opt[2] == DHCP_ACK) {
+                opt += 2 + len;
+                saw_end = 0;
+                while (opt < opt_end) {
+                    struct dhcp_option *inner;
+                    uint32_t data;
+                    if (opt + 1 > opt_end)
+                        break;
+                    code = opt[0];
+                    if (code == DHCP_OPTION_END) {
+                        saw_end = 1;
+                        break;
                     }
-                    if ((opt->code == DHCP_OPTION_DNS) && (s->dns_server == 0))
+                    if (code == 0) {
+                        opt++;
+                        continue;
+                    }
+                    if (opt + 2 > opt_end)
+                        return -1;
+                    len = opt[1];
+                    if (opt + 2 + len > opt_end)
+                        return -1;
+                    inner = (struct dhcp_option *)opt;
+                    if (code == DHCP_OPTION_SERVER_ID) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        s->dhcp_server_ip = ee32(data);
+                    } else if (primary && code == DHCP_OPTION_OFFER_IP) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->ip = ee32(data);
+                    } else if (primary && code == DHCP_OPTION_SUBNET_MASK) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->mask = ee32(data);
+                    } else if (primary && code == DHCP_OPTION_ROUTER) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->gw = ee32(data);
+                    } else if ((code == DHCP_OPTION_DNS) && (s->dns_server == 0)) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
                         s->dns_server = ee32(data);
-                    opt = (struct dhcp_option *)((uint8_t *)opt + 2 + opt->len);
+                    }
+                    opt += 2 + len;
                 }
+                if (!saw_end)
+                    return -1;
                 if (primary && (primary->ip != 0) && (primary->mask != 0)) {
                     dhcp_cancel_timer(s);
                     s->dhcp_state = DHCP_BOUND;
                     return 0;
                 }
-            } else break;
-        } else break;
+            }
+            break;
+        }
+        opt += 2 + len;
     }
+    if (!saw_end)
+        return -1;
     return -1;
 }
 
@@ -4616,9 +4739,9 @@ static int dhcp_poll(struct wolfIP *s)
                                (struct wolfIP_sockaddr *)&sin, &sl);
     if (len < 0)
         return -1;
-    if ((s->dhcp_state == DHCP_DISCOVER_SENT) && (dhcp_parse_offer(s, &msg) == 0))
+    if ((s->dhcp_state == DHCP_DISCOVER_SENT) && (dhcp_parse_offer(s, &msg, (uint32_t)len) == 0))
         dhcp_send_request(s);
-    else if ((s->dhcp_state == DHCP_REQUEST_SENT) && (dhcp_parse_ack(s, &msg) == 0)) {
+    else if ((s->dhcp_state == DHCP_REQUEST_SENT) && (dhcp_parse_ack(s, &msg, (uint32_t)len) == 0)) {
         struct ipconf *primary = wolfIP_primary_ipconf(s);
         LOG("DHCP configuration received.\n");
         if (primary) {

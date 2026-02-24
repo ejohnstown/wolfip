@@ -28,7 +28,17 @@ jobs:
             set -ex
             cd "${GITHUB_WORKSPACE:-/root/work/github/workspace}"
             gmake build/test-evloop build/test-wolfssl build/test-ttl-expired unit
+            cleanup_taps() {
+              for ifc in $(ifconfig -l | tr ' ' '\n' | grep '^tap'); do
+                ifconfig "${ifc}" destroy || true
+              done
+            }
+            cleanup_taps
             ./build/test/unit
+            cleanup_taps
             ./build/test-evloop
+            sleep 2
+            cleanup_taps
             ./build/test-wolfssl
+            cleanup_taps
             ./build/test-ttl-expired

@@ -7341,7 +7341,6 @@ START_TEST(test_tcp_input_fin_wait_2_fin_sets_ack)
     ts->local_ip = 0x0A000001U;
     ts->remote_ip = 0x0A000002U;
     ts->sock.tcp.ack = seq;
-    ts->sock.tcp.ack = seq;
 
     memset(&seg, 0, sizeof(seg));
     seg.ip.ttl = 64;

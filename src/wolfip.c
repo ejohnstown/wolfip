@@ -3256,20 +3256,10 @@ static void tcp_input(struct wolfIP *S, unsigned int if_idx,
                 if (tcp->flags & TCP_FLAG_FIN) {
                     uint32_t seq = ee32(tcp->seq);
                     uint32_t fin_seq_end = tcp_seq_inc(seq, tcplen);
-                    int established = (t->sock.tcp.state == TCP_ESTABLISHED);
-                    int fin_wait_2 = (t->sock.tcp.state == TCP_FIN_WAIT_2);
                     int accept_fin = 1;
 
-                    if (established) {
-                        if ((tcplen == 0 && t->sock.tcp.ack != seq) ||
-                            (tcplen > 0 && t->sock.tcp.ack != fin_seq_end)) {
-                            accept_fin = 0;
-                        }
-                    }
-                    if (fin_wait_2 && t->sock.tcp.ack != seq) {
-                        accept_fin = 0;
-                    }
-                    if (t->sock.tcp.state == TCP_FIN_WAIT_1 && t->sock.tcp.ack != seq) {
+                    if ((tcplen == 0 && t->sock.tcp.ack != seq) ||
+                        (tcplen > 0 && t->sock.tcp.ack != fin_seq_end)) {
                         accept_fin = 0;
                     }
                     if (accept_fin) {
@@ -3284,8 +3274,8 @@ static void tcp_input(struct wolfIP *S, unsigned int if_idx,
                         } else if (t->sock.tcp.state == TCP_FIN_WAIT_2) {
                             t->sock.tcp.state = TCP_TIME_WAIT;
                         }
-                        if (established && tcplen > 0 && t->sock.tcp.ack == fin_seq_end) {
-                            t->sock.tcp.ack = tcp_seq_inc(t->sock.tcp.ack, 1);
+                        if (tcplen > 0) {
+                            t->sock.tcp.ack = tcp_seq_inc(fin_seq_end, 1);
                         } else {
                             t->sock.tcp.ack = tcp_seq_inc(seq, 1);
                         }

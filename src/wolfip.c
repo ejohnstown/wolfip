@@ -4560,15 +4560,13 @@ static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg
         if (opt + 2 > opt_end)
             return -1;
         len = opt[1];
-        if (len == 0)
-            return -1;
         if (opt + 2 + len > opt_end)
             return -1;
         if (code == DHCP_OPTION_MSG_TYPE) {
-            if (len < 1)
+            if (len != 1)
                 return -1;
             if (opt[2] == DHCP_OFFER) {
-                opt += 3;
+                opt += 2 + len;
                 saw_end = 0;
                 while (opt < opt_end) {
                     struct dhcp_option *inner;
@@ -4586,8 +4584,6 @@ static int dhcp_parse_offer(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg
                     if (opt + 2 > opt_end)
                         return -1;
                     len = opt[1];
-                    if (len == 0)
-                        return -1;
                     if (opt + 2 + len > opt_end)
                         return -1;
                     inner = (struct dhcp_option *)opt;
@@ -4659,15 +4655,13 @@ static int dhcp_parse_ack(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg_l
         if (opt + 2 > opt_end)
             return -1;
         len = opt[1];
-        if (len == 0)
-            return -1;
         if (opt + 2 + len > opt_end)
             return -1;
         if (code == DHCP_OPTION_MSG_TYPE) {
-            if (len < 1)
+            if (len != 1)
                 return -1;
             if (opt[2] == DHCP_ACK) {
-                opt += 3;
+                opt += 2 + len;
                 saw_end = 0;
                 while (opt < opt_end) {
                     struct dhcp_option *inner;
@@ -4686,26 +4680,35 @@ static int dhcp_parse_ack(struct wolfIP *s, struct dhcp_msg *msg, uint32_t msg_l
                     if (opt + 2 > opt_end)
                         return -1;
                     len = opt[1];
-                    if (len == 0)
-                        return -1;
                     if (opt + 2 + len > opt_end)
                         return -1;
-                    if (len < 4)
-                        return -1;
                     inner = (struct dhcp_option *)opt;
-                    data = DHCP_OPT_data_to_u32(inner);
-                    if (code == DHCP_OPTION_SERVER_ID)
+                    if (code == DHCP_OPTION_SERVER_ID) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
                         s->dhcp_server_ip = ee32(data);
-                    if (primary) {
-                        if (code == DHCP_OPTION_OFFER_IP)
-                            primary->ip = ee32(data);
-                        if (code == DHCP_OPTION_SUBNET_MASK)
-                            primary->mask = ee32(data);
-                        if (code == DHCP_OPTION_ROUTER)
-                            primary->gw = ee32(data);
-                    }
-                    if ((code == DHCP_OPTION_DNS) && (s->dns_server == 0))
+                    } else if (primary && code == DHCP_OPTION_OFFER_IP) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->ip = ee32(data);
+                    } else if (primary && code == DHCP_OPTION_SUBNET_MASK) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->mask = ee32(data);
+                    } else if (primary && code == DHCP_OPTION_ROUTER) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
+                        primary->gw = ee32(data);
+                    } else if ((code == DHCP_OPTION_DNS) && (s->dns_server == 0)) {
+                        if (len < 4)
+                            return -1;
+                        data = DHCP_OPT_data_to_u32(inner);
                         s->dns_server = ee32(data);
+                    }
                     opt += 2 + len;
                 }
                 if (!saw_end)
